@@ -77,19 +77,14 @@ void loop()
       actuator_angles1(i) = bus1.Get(i).Position();
       actuator_velocities1(i) = bus1.Get(i).Velocity();
     }
-
-    BLA::Matrix<3> cartesian_coordinates2 = forward_kinematics(actuator_angles2, pupper_leg_config);
-
-    // BLA::Matrix<3> test_point(0.1, -0.07, 0);
-    // 0.16 m
-    cartesian_coordinates2(1) += 0.16;
-    BLA::Matrix<3> angles1 = inverse_kinematics(cartesian_coordinates2, pupper_leg_config, actuator_angles1);
-    actuator_commands1 = vectorized_pd(actuator_angles1, actuator_velocities1, angles1, Kp, Kd);
-    // TODO: Uncomment to test a reachable test point to check IK-FK is correct
-    // BLA::Matrix<3> test_point(-0.1, 0.07, 0);
-    // BLA::Matrix<3> angles = inverse_kinematics(test_point, pupper_leg_config, actuator_angles1);
-    // print_vector(forward_kinematics(angles, pupper_leg_config));
-
+    /**
+      1. Calculate the end effector position of the leg on bus 2
+      2. Calculate the inverse kinematics of the leg on bus1 with the end effector position from step 1
+      3. Calculate ``actuator_commands1`` using ``vectorized_pd`` to command the leg on bus1 given Kp and Kd gains provided
+      part(2)
+      1. Instead of passing the end effector position directly, add a 0.16 offset to the y position
+      */
+     
     actuator_commands1 = vectorized_sanitize(actuator_commands1,
                                              actuator_angles1,
                                              actuator_velocities1,
