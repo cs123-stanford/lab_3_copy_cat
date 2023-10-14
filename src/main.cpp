@@ -4,44 +4,39 @@
 #include "BasicLinearAlgebra.h"
 #include "pid.h"
 #include "kinematics.h"
-#include "test_kinematics.h"
 #include "test_inv_kinematics.h"
 #include "utils.h"
 
-#define DO_TESTS = // comment out to skip running tests before executing main program
+#define DO_TESTS =
 
-/*********** STUDENT CONFIGURATION NECESSARY *************/
-// Examine your robot leg to see if you built a left leg or a right leg.
-// Then replace kUnspecified with the correct side.
 const BodySide kLegSide = BodySide::kRight;
-/*********************************************************/
 
-long last_command = 0; // To keep track of when we last commanded the motors
-C610Bus<CAN2> bus2;    // Initialize the Teensy's CAN bus to talk to the rear Pupper motors
-C610Bus<CAN1> bus1;
+long last_command = 0;  // To keep track of when we last commanded the motors
+C610Bus<CAN2> bus_back; // Initialize the Teensy's CAN bus to talk to the rear Pupper motors
+C610Bus<CAN1> bus_front;
 
 const int LOOP_DELAY_MILLIS = 5; // Wait for 0.005s between motor updates.
 
-const float Kp = 2000; // 2000;
-const float Kd = 100;  // 100;
-const float kMaxCurrent = 3000;
+const float Kp = 5000;
+const float Kd = 250;
+const float kMaxCurrent = 8000;
 
 // Define the signed hip offset and link lengths
-const KinematicsConfig pupper_leg_config = (kLegSide == BodySide::kLeft) ? KinematicsConfig{0.035, 0.08, 0.11} : KinematicsConfig{-0.035, 0.08, 0.11};
+const KinematicsConfig pupper_leg_config = KinematicsConfig{0.035, 0.08, 0.11};
 
-BLA::Matrix<3> actuator_angles2{0, 0, 0};     // rad
-BLA::Matrix<3> actuator_velocities2{0, 0, 0}; // rad/s
-BLA::Matrix<3> actuator_commands2{0, 0, 0};   // mA
+BLA::Matrix<3> bus_back_actuator_angles{0, 0, 0};     // rad
+BLA::Matrix<3> bus_back_actuator_velocities{0, 0, 0}; // rad/s
+BLA::Matrix<3> bus_back_actuator_commands{0, 0, 0};   // mA
 
-BLA::Matrix<3> actuator_angles1{0, 0, 0};     // rad
-BLA::Matrix<3> actuator_velocities1{0, 0, 0}; // rad/s
-BLA::Matrix<3> actuator_commands1{0, 0, 0};   // mA
+BLA::Matrix<3> bus_front_actuator_angles{0, 0, 0};     // rad
+BLA::Matrix<3> bus_front_actuator_velocities{0, 0, 0}; // rad/s
+BLA::Matrix<3> bus_front_actuator_commands{0, 0, 0};   // mA
 void setup()
 {
-  clear_serial_buffer();
-  wait_for_key('s', "Remember to start the arm extended out horizontally.");
+    clear_serial_buffer();
+    wait_for_key('s', "Remember to start the arms vertically.");
 #ifdef DO_TESTS
-  test_inv_kinematics();
+    test_inv_kinematics();
 #endif
 }
 
@@ -49,51 +44,55 @@ float flip = 1.0;
 
 void loop()
 {
-  bus2.PollCAN(); // Check for messages from the motors.
-  bus1.PollCAN();
-  long now = millis();
+    bus_back.PollCAN(); // Check for messages from the motors.
+    bus_front.PollCAN();
+    long now = millis();
 
-  // Check to see if we received a 's' and if so, stop the program.
-  if (Serial.available())
-  {
-    if (Serial.read() == 's')
+    // Check to see if we received a 's' and if so, stop the program.
+    if (Serial.available())
     {
-      bus2.CommandTorques(0, 0, 0, 0, C610Subbus::kOneToFourBlinks);
-      bus1.CommandTorques(0, 0, 0, 0, C610Subbus::kOneToFourBlinks);
-      Serial.println("Stopping.");
-      while (true)
-      {
-      }
+        if (Serial.read() == 's')
+        {
+            bus_back.CommandTorques(0, 0, 0, 0, C610Subbus::kOneToFourBlinks);
+            bus_front.CommandTorques(0, 0, 0, 0, C610Subbus::kOneToFourBlinks);
+            Serial.println("Stopping.");
+            while (true)
+            {
+            }
+        }
     }
-  }
 
-  // Check to see if it's time to run our control loop again.
-  if (now - last_command >= LOOP_DELAY_MILLIS)
-  {
-    for (int i = 0; i < 3; i++)
+    // Check to see if it's time to run our control loop again.
+    if (now - last_command >= LOOP_DELAY_MILLIS)
     {
-      actuator_angles2(i) = bus2.Get(i).Position();
-      actuator_velocities2(i) = bus2.Get(i).Velocity();
-      actuator_angles1(i) = bus1.Get(i).Position();
-      actuator_velocities1(i) = bus1.Get(i).Velocity();
+        for (int i = 0; i < 3; i++)
+        {
+            bus_back_actuator_angles(i) = bus_back.Get(i).Position();
+            bus_back_actuator_velocities(i) = bus_back.Get(i).Velocity();
+            bus_front_actuator_angles(i) = bus_front.Get(i).Position();
+            bus_front_actuator_velocities(i) = bus_front.Get(i).Velocity();
+        }
+        /**
+         *  1. Calculate target Cartesian coordinate from the BUS-BACK arm's joint angles using forward kinematics.
+         *  2. Add 0.14 to the x-coordinate of the target to meet the other arm's position.
+         *  3. Compute joint angles for the BUS-FRONT arm to reach the target position using inverse kinematics.
+         *  4. Generate actuator commands for the BUS-FRONT arm using vectorized PD control.
+         *
+         *  Expected code length ~ 4 lines
+         *  Note: You can use print_vector to print vectors for debugging
+         */
+        // ========================= START CODE HERE ===========================
+        // bus_front_actuator_commands = ...
+        // ========================= END CODE HERE ===========================
+        bus_front_actuator_commands = vectorized_sanitize(bus_front_actuator_commands,
+                                                          bus_front_actuator_angles,
+                                                          bus_front_actuator_velocities,
+                                                          kMaxCurrent);
+
+        // Only call CommandTorques once per loop! Calling it multiple times will override the last command.
+        bus_front.CommandTorques(bus_front_actuator_commands(0), bus_front_actuator_commands(1), bus_front_actuator_commands(2), 0, C610Subbus::kOneToFourBlinks);
+
+        last_command = now;
+        Serial.println();
     }
-    /**
-      1. Calculate the end effector position of the leg on bus 2
-      2. Calculate the inverse kinematics of the leg on bus1 with the end effector position from step 1
-      3. Calculate ``actuator_commands1`` using ``vectorized_pd`` to command the leg on bus1 given Kp and Kd gains provided
-      part(2)
-      1. Instead of passing the end effector position directly, add a 0.16 offset to the y position
-      */
-     
-    actuator_commands1 = vectorized_sanitize(actuator_commands1,
-                                             actuator_angles1,
-                                             actuator_velocities1,
-                                             kMaxCurrent);
-
-    // Only call CommandTorques once per loop! Calling it multiple times will override the last command.
-    bus1.CommandTorques(actuator_commands1(0), actuator_commands1(1), actuator_commands1(2), 0, C610Subbus::kOneToFourBlinks);
-
-    last_command = now;
-    Serial.println();
-  }
 }

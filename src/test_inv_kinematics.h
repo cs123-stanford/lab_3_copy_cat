@@ -13,19 +13,19 @@
 #pragma once
 #include <kinematics.h>
 #include <utils.h>
-void test_ik()
+void test_ik1()
 {
   const KinematicsConfig pupper_leg_config = KinematicsConfig{-0.035, 0.08, 0.11};
   BLA::Matrix<3> actuator_angles1(PI / 2, PI / 2, PI / 2);
-  /**
-   1. Create a reachable test point
-   2. Calculate the inverse kinematics solution to get the motor angles
-   3. Verify the motor angles are the same as the test point using assert_close from utils.h with eps = 0.01
-   */
-   /** TODO: Fill me in! **/
+  BLA::Matrix<3> test_point(-0.1, 0.07, 0);
+  BLA::Matrix<3> angles = inverse_kinematics(test_point, pupper_leg_config, actuator_angles1);
+  BLA::Matrix<3> res = (forward_kinematics(angles, pupper_leg_config));
+  assert_close(res(0), -0.10, 0.01);
+  assert_close(res(1), 0.07, 0.01);
+  assert_close(res(2), 0.0, 0.01);
 }
 
 void test_inv_kinematics()
 {
-  test_ik();
+  test_ik1();
 }
