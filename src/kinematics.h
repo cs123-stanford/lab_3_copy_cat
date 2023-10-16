@@ -61,7 +61,7 @@ BLA::Matrix<3> forward_kinematics(const BLA::Matrix<3> &joint_angles, const Kine
     return cartesian_coords;
 }
 
-// Epsilon for Newton Method
+// Epsilon for Gradient Descent Method
 const double EPS = 1e-2;
 const double ALPHA = 0.1;
 /**
@@ -80,7 +80,6 @@ float distance(const BLA::Matrix<3> &target_location, const BLA::Matrix<3> &join
  *     a. Calculate the perturbed cost of taking an EPS step in the positive direction for each of the current joint angles.
  *     b. Calculate the nominal cost of being at the target_location from the current joint angles.
  *     c. Calculate the gradient by subtracting (cost_perturbed - cost_nominal) divided by epsilon (EPS).
- *  2. Multiply each gradient by a scaling factor ALPHA for gradient adjustment.
  *  3. Return a BLA::Matrix<3> to store the gradients for each motor
  */
 BLA::Matrix<3> calculate_gradient(const BLA::Matrix<3> joint_angles, const BLA::Matrix<3> &target_location, const KinematicsConfig &config)
@@ -96,8 +95,8 @@ BLA::Matrix<3> calculate_gradient(const BLA::Matrix<3> joint_angles, const BLA::
  *  2. Set current_cost to the initial distance between target_location and joint_angles using the provided distance function.
  *  3. Run a loop for a predefined number of iterations, (use 200 iterations).
  *     a. Calculate the cost gradient with respect to the joint angles using calculate_gradient function.
+ *     b. Multiply each gradient by a scaling factor ALPHA for gradient adjustment.
  *     b. Update joint_angles by taking a gradient step to minimize the cost.
- *     c. Recalculate the current_cost after the update.
  *  4. Return the optimized joint_angles.
  */
 BLA::Matrix<3> inverse_kinematics(const BLA::Matrix<3> &target_location, const KinematicsConfig &config, const BLA::Matrix<3> &cur_joint_angles)
