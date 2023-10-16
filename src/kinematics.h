@@ -98,7 +98,6 @@ BLA::Matrix<3> calculate_gradient(const BLA::Matrix<3> joint_angles, const BLA::
  *     a. Calculate the cost gradient with respect to the joint angles using calculate_gradient function.
  *     b. Update joint_angles by taking a gradient step to minimize the cost.
  *     c. Recalculate the current_cost after the update.
- *     d. If current_cost is less than or equal to a defined threshold (IK_THRESH), break the loop.
  *  4. Return the optimized joint_angles.
  */
 BLA::Matrix<3> inverse_kinematics(const BLA::Matrix<3> &target_location, const KinematicsConfig &config, const BLA::Matrix<3> &cur_joint_angles)
